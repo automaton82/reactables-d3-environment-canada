@@ -9,57 +9,53 @@ const cityNames = ['Toronto', 'Vancouver', 'Montreal', 'Calgary', 'Ottawa', 'Win
 
 const initialState = {
     updating: false,
-    year: '2023',
-    cityId: null,
+    year: previousYear,
     years: Array.from({ length: 5 }, (_, i) => previousYear - i),
+    cityId: '',
     cities: [],
     cityData: null
 };
 
 const getCitiesRequest = () =>
-  cityNames.map((city) =>
-    fetch(`${baseStationsUrl}&STATION_NAME=${city}`).then((response) =>
-      response.json()
-    )
-  );
-
-
+    cityNames.map((city) =>
+        fetch(`${baseStationsUrl}&STATION_NAME=${city}`).then((response) => response.json())
+    );
 
 export const RxChartData = () =>
     RxBuilder({
         initialState,
         sources: [forkJoin(getCitiesRequest()).pipe(
-          mergeMap((stationRequests) => {
-              const stationOptions = stationRequests.map(
-                (stationRequest, index) => ({
-                  label: cityNames[index],
-                  value: stationRequest.features[0].id,
-                })
-              );
-    
-              // concat allows you to send observables in a specific order i.e 1. stationsUpdateSuccess 2. updateCityData
-              return concat(
-                of({
-                  type: "stationsUpdateSuccess",
-                  payload: stationOptions,
-                }),
-                of({
-                  type: "updateCityData",
-                  payload: {
-                    year: initialState.year,
-                    cityId: stationRequests[0].features[0].id,
-                  },
-                })
-              );
+            mergeMap((stationRequests) => {
+                const stationOptions = stationRequests.map(
+                    (stationRequest, index) => ({
+                        label: cityNames[index],
+                        value: stationRequest.features[0].id,
+                    })
+                );
+
+                // concat allows you to send observables in a specific order i.e 1. stationsUpdateSuccess 2. updateCityData
+                return concat(
+                    of({
+                        type: "stationsUpdateSuccess",
+                        payload: stationOptions
+                    },
+                    {
+                        type: "updateCityData",
+                        payload: {
+                            year: initialState.year,
+                            cityId: stationRequests[0].features[0].id
+                        }
+                    })
+                );
             })
-          ),
+        ),
         ],
         reducers: {
             stationsUpdateSuccess: (state, { payload: stationOptions }) => ({
-              ...state,
-              // We can set the cityId to first option mapped from the api requests
-              cityId: stationOptions[0].value,
-              cities: stationOptions,
+                ...state,
+                // We can set the cityId to first option mapped from the api requests
+                cityId: stationOptions[0].value,
+                cities: stationOptions
             }),
             updateCityData: {
                 reducer: (state, { payload: { year, cityId } }) => ({
